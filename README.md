@@ -1,9 +1,6 @@
 # matching
 This R code generates a reproducible two-sided matching market in which m men and n women are matched up by the Deferred Acceptance Algorithm (DAA) by Gale & Shapley. This code allows to analyze the effect of set size, gender distribution and preference structures (perfectly independent, correlated, intercorrelated, or weighted) on both the male-optimal and the female-optimal version of the DAA
 
-![alt text](aggregateGenderMatchingSatisfaction.png "Description goes here")
-![alt text](individualMatchingSatisfaction.png "Description goes here")
-
 1.	Generate Matching Network and Preferences
 -	Generate a matching network, consisting of two sets (M men and N women)
 -	Each agent has certain preferences (or utility) for each agent of the other set 
@@ -23,3 +20,7 @@ o	If genders are unequal (e.g. 60 men, 40 women), I would expect some agents to 
 3.	Repeat 1&2 X times
 -	Now, as results from 2 depend on the seed I set at the beginning, each step described above is repeated X times (e.g. 200x). Each time a new network with new agents and new preferences is generated, I would expect a slightly different result
 -	The end result is the average of all X repetitions. I expect this to be the most likely result for the 201st repetition. I am also interested in the variance of these 200 results
+
+4. Visualize results
+![alt text](aggregateGenderMatchingSatisfaction.png "Description goes here")
+![alt text](individualMatchingSatisfaction.png "Description goes here")
