@@ -246,13 +246,15 @@ plotMen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) +
   geom_density(alpha=1/(repetitions+1),show.legend=FALSE, colour=NA) +
   scale_fill_manual(values = rep("#2595FF", each=repetitions+1)) +
   theme_economist_white() +
-  coord_flip() +
-  theme(axis.title.y=element_text(hjust=1), axis.title.x=element_blank()) +
+
+  theme(axis.title.y=element_text(hjust=1), axis.title.x=element_blank(), axis.text.y=element_blank()) +
+
   scale_y_reverse() +
   xlim(low=0, high=1) +
   #scale_x_continuous(breaks=seq(0,1,0.1)) +
   #ylab("Share of Matching") +
   xlab("Match Percentile per Agent") +
+  coord_flip() +
   theme(plot.margin = unit(c(0.3, 0.2, 0.3, 0.5), "cm")) #adds space
   #xlim(low=0, high=1)
 
