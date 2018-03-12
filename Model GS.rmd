@@ -140,13 +140,13 @@ for (i in seedMin:seedMax){
   
   #Create results
   #Gini Coefficient female-optimal
-  percWW = pnorm(resultsWW,mean=mn,sd=sd)
-  percMW = pnorm(resultsMW,mean=mn,sd=sd)
+  percWW = round(pnorm(resultsWW,mean=mn,sd=sd), digits = 2)
+  percMW = round(pnorm(resultsMW,mean=mn,sd=sd), digits = 2)
   wealthW = c(percWW, percMW)
   wealthW[is.na(wealthW)] <- 0
   #Gini Coefficient male-optimal
-  percMM = pnorm(resultsMM,mean=mn,sd=sd)
-  percWM = pnorm(resultsWM,mean=mn,sd=sd)
+  percMM = round(pnorm(resultsMM,mean=mn,sd=sd), digits = 2)
+  percWM = round(pnorm(resultsWM,mean=mn,sd=sd), digits = 2)
   wealthM = c(percMM, percWM)
   wealthM[is.na(wealthM)] <- 0
   
@@ -156,10 +156,10 @@ for (i in seedMin:seedMax){
   rownames(resultsPercentile) = c("fo min", "fo avg", "fo max", "mo min", "mo avg", "mo max")
   colnames(resultsPercentile) = c("Match Percentile for Women", "Match Percentile for Men", "Gini Coeff.")
   
-  fo_avg_W=c(fo_avg_W,resultsPercentile[2,1])
-  fo_avg_M=c(fo_avg_M,resultsPercentile[2,2])
-  mo_avg_W=c(mo_avg_W,resultsPercentile[5,1])
-  mo_avg_M=c(mo_avg_M,resultsPercentile[5,2])
+  fo_avg_W=round(c(fo_avg_W,resultsPercentile[2,1]), digits=3)
+  fo_avg_M=round(c(fo_avg_M,resultsPercentile[2,2]), digits=3)
+  mo_avg_W=round(c(mo_avg_W,resultsPercentile[5,1]), digits=3)
+  mo_avg_M=round(c(mo_avg_M,resultsPercentile[5,2]), digits=3)
   RLIST[[i]]=resultsPercentile
   utilityMenFO[[i]]=resultsMW
   utilityMenMO[[i]]=resultsMM
@@ -222,14 +222,15 @@ Within each iteration, was utility distributed fairly across agents in both gend
 ggplot(data = DF, aes(x = avg)) + 
 
   geom_vline(data=DF, aes(xintercept=AVERAGE[2,2]), linetype="solid", size=1, colour = "#2595FF") +
-  geom_density(data = filter(DF, algorithm == "female-optimal" & sex == "men"), fill = "#2595FF", color = NA, alpha = 0.3) +
+  geom_bar(data = filter(DF, algorithm == "female-optimal" & sex == "men"), fill = "#2595FF", color = NA, alpha = 0.3) +
   #geom_density(data = filter(DF, algorithm == "male-optimal" & sex == "men"), fill = "#2595FF", color = NA, alpha = 0.3) +
 
     geom_vline(data=DF, aes(xintercept=AVERAGE[2,1]), linetype="solid", size=1, colour = "#FE18AC") +
-    geom_density(data = filter(DF, algorithm == "female-optimal" & sex == "women"), fill = "#FE18AC", color = NA, alpha = 0.3) +
+    geom_bar(data = filter(DF, algorithm == "female-optimal" & sex == "women"), fill = "#FE18AC", color = NA, alpha = 0.3) +
   #geom_density(data = filter(DF, algorithm == "male-optimal" & sex == "women"), fill = "#FE18AC", color = NA, alpha = 0.3) +
-  xlab("Percentile per Agent") + ylab("Frequency") + #Add axis
+  xlab("Aggregate Gender Satisfaction in each Matching") + ylab("Frequency") + #Add axis
   theme(plot.title = element_text(face="bold", size=16, hjust=0)) + #format title
+  scale_y_continuous(breaks=seq(0,12,1)) +
   labs(title = paste("Aggregate Gender Matching Satisfaction"), caption = paste((repetitions+1), " iterations"), subtitle = (paste("Set size = ", setSize," || men/women (in %) = ", nmen/setSize*100, ":", nwomen/setSize*100, "\nPreference structure individual/collective/homolog (in %) = ", round(wI*100), "/", round(wC * 100), "/", round(wH * 100), sep = ""))) + #add title
   #xlim(low=0.8, high=1) + #change this to modify x-axis limits
   theme_economist_white() #applies Economist-like theme
@@ -241,14 +242,15 @@ ggplot(data = DF, aes(x = avg)) +
 dfMenFO$id=1:nrow(dfMenFO)
 dfPlot=melt(dfMenFO, id.vars="id")
 plotMen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) + 
-  geom_vline(data=dfPlot, aes(xintercept=uMWav), linetype="solid", size=1, colour = "#2595FF") +
+  geom_vline(data=dfPlot, aes(xintercept=AVERAGE[2,2]), linetype="solid", size=1, colour = "#2595FF") +
   geom_density(alpha=1/(repetitions+1),show.legend=FALSE, colour=NA) +
   scale_fill_manual(values = rep("#2595FF", each=repetitions+1)) +
   theme_economist_white() +
   coord_flip() +
   theme(axis.title.y=element_text(hjust=1), axis.title.x=element_blank()) +
-  ylim(low=1, high=0) +
+  scale_y_reverse() +
   xlim(low=0, high=1) +
+  #scale_x_continuous(breaks=seq(0,1,0.1)) +
   #ylab("Share of Matching") +
   xlab("Match Percentile per Agent") +
   theme(plot.margin = unit(c(0.3, 0.2, 0.3, 0.5), "cm")) #adds space
@@ -257,14 +259,13 @@ plotMen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) +
 dfWomenFO$id=1:nrow(dfWomenFO)
 dfPlot=melt(dfWomenFO, id.vars="id")
 plotWomen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) + 
-  geom_vline(data=dfPlot, aes(xintercept=uWWav), linetype="solid", size=1, colour = "#FE18AC") +
+  geom_vline(data=dfPlot, aes(xintercept=AVERAGE[2,1]), linetype="solid", size=1, colour = "#FE18AC") +
   geom_density(alpha=1/(repetitions+1),show.legend=FALSE, colour=NA) +
   scale_fill_manual(values = rep("#FE18AC", each=repetitions+1)) + #add title
   theme_economist_white() +
   labs(caption = paste((repetitions+1), " iterations")) + #add title
   coord_flip() +
   theme(axis.title.y=element_blank(), axis.title.x=element_blank(), axis.text.y=element_text(hjust=1)) + 
-  ylim(low=0, high=1) +
   xlim(low=0, high=1) +
   theme(plot.margin = unit(c(0, 0.3, 0, 0), "cm"))
 
