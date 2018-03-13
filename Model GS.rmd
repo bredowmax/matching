@@ -216,18 +216,15 @@ data_summary <- function(x) {
 }
 ```
 
-### Density Chart
+### Aggregate Gender Satisfaction Chart
 Within each iteration, was utility distributed fairly across agents in both genders? Was this result stable across iterations?
 ```{r, message = FALSE, warning = FALSE, dpi=300}
-ggplot(data = DF, aes(x = avg)) + 
+ggplot(data = DF, aes(x = avg, fill=sex)) + 
 
   geom_vline(data=DF, aes(xintercept=AVERAGE[2,2]), linetype="solid", size=1, colour = "#2595FF") +
-  geom_bar(data = filter(DF, algorithm == "female-optimal" & sex == "men"), fill = "#2595FF", color = NA, alpha = 0.3) +
-  #geom_density(data = filter(DF, algorithm == "male-optimal" & sex == "men"), fill = "#2595FF", color = NA, alpha = 0.3) +
-
-    geom_vline(data=DF, aes(xintercept=AVERAGE[2,1]), linetype="solid", size=1, colour = "#FE18AC") +
-    geom_bar(data = filter(DF, algorithm == "female-optimal" & sex == "women"), fill = "#FE18AC", color = NA, alpha = 0.3) +
-  #geom_density(data = filter(DF, algorithm == "male-optimal" & sex == "women"), fill = "#FE18AC", color = NA, alpha = 0.3) +
+  geom_vline(data=DF, aes(xintercept=AVERAGE[2,1]), linetype="solid", size=1, colour = "#FE18AC") +
+  geom_bar(data = filter(DF, algorithm == "female-optimal"),show.legend=FALSE, color = NA, alpha = 0.3, position="identity") +
+  scale_fill_manual(values=c("#2595FF", "#FE18AC")) +
   xlab("Aggregate Gender Satisfaction in each Matching") + ylab("Frequency") + #Add axis
   theme(plot.title = element_text(face="bold", size=16, hjust=0)) + #format title
   scale_y_continuous(breaks=seq(0,12,1)) +
@@ -236,7 +233,7 @@ ggplot(data = DF, aes(x = avg)) +
   theme_economist_white() #applies Economist-like theme
 ```
 
-### Matching Satisfaction across all iterations
+### Individual Matching Satisfaction across all iterations
 
 ```{r, message = FALSE, warning = FALSE, dpi=300}
 dfMenFO$id=1:nrow(dfMenFO)
@@ -252,7 +249,7 @@ plotMen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) +
   scale_y_reverse() +
   xlim(low=0, high=1) +
   #scale_x_continuous(breaks=seq(0,1,0.1)) +
-  #ylab("Share of Matching") +
+  ylab("Share of Matching") +
   xlab("Match Percentile per Agent") +
   coord_flip() +
   theme(plot.margin = unit(c(0.3, 0.2, 0.3, 0.5), "cm")) #adds space
@@ -272,9 +269,10 @@ plotWomen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) +
   theme(plot.margin = unit(c(0, 0.3, 0, 0), "cm"))
 
 p=plot_grid(plotMen,plotWomen, align="h")
-title <- ggdraw() + draw_label("Individual Matching Satisfaction", fontface='bold', size = 16)
-sub=ggdraw()+draw_label(paste("Set size = ", setSize," || men/women (in %) = ", nmen/setSize*100, ":", nwomen/setSize*100, "\nPreference structure individual/collective/homolog (in %) = ", round(wI*100), "/", round(wC * 100), "/", round(wH * 100), sep = ""),size=10)
-p1=plot_grid(sub,p,ncol=1,rel_heights=c(0.1, 1)) + theme(panel.background=element_rect(fill="#EBEBEB", color="#EBEBEB"))
-plot_grid(title, p1, ncol=1, rel_heights=c(0.06, 1)) +
+title <- ggdraw() + 
+  draw_label("Individual Matching Satisfaction", fontface='bold', size = 16, x=0.05, y=0.5, hjust = 0, vjust=0) +
+  draw_label(paste("Set size = ", setSize," || men/women (in %) = ", nmen/setSize*100, ":", nwomen/setSize*100),size=10, x = 0.05, y=0.24, hjust=0, vjust=0) + 
+  draw_label(paste("Preference structure individual/collective/homolog (in %) = ", round(wI*100), "/", round(wC * 100), "/", round(wH * 100), sep = ""),size=10, x = 0.05, y=0.05, hjust=0, vjust=0)
+plot_grid(title, p, ncol=1, rel_heights=c(0.2, 1)) +
   theme(panel.background=element_rect(fill="#EBEBEB",color="#EBEBEB"))
 ```
