@@ -10,7 +10,7 @@ Github repository: <https://github.com/bredowmax/matching>
 - rmarkdown: Export R code to Word
 - ineq: Package that allows to display inequality
 ```{r, message = FALSE, warning = FALSE}
-requiredPackages = c("matchingR", "dplyr", "ggplot2", "rmarkdown", "ineq", "reshape2", "ggthemes", "cowplot", "grid", "scales")
+requiredPackages = c("matchingR", "dplyr", "ggplot2", "rmarkdown", "ineq", "reshape2", "ggthemes", "cowplot", "grid", "scales", "Rserve")
 for(p in requiredPackages){
   if(!require(p,character.only = TRUE)) install.packages(p)
   library(p,character.only = TRUE)
@@ -26,12 +26,12 @@ Sets network size, gender distribution, preference structure, experiment iterati
 
 - *intercorrelated/homolog/vertical*: Certain characteristics attract agents to each other, for example a low distance, a preferable age/height/height constellation, or common interests
 ```{r, message = FALSE, warning = FALSE}
-nmen <- 500 #number of men
-nwomen <- 500 #number of women
+nmen <- 3 #number of men
+nwomen <- 3 #number of women
 prefIndependent <- 1 #weight of subjective/independent preferences
-prefCollective <- 1 #weight of collective/correlated preferences
-prefHomolog <- 1 #weight of homolog/intercorrelated preferences
-repetitions <- 99 #how many times the experiment is repeated with new set of random preferences
+prefCollective <- 0 #weight of collective/correlated preferences
+prefHomolog <- 0 #weight of homolog/intercorrelated preferences
+repetitions <- 1 #how many times the experiment is repeated with new set of random preferences
 mn <- 6.3 #average preference
 sd <- 1.9 #standard deviation
 ```
@@ -47,19 +47,11 @@ sumPref=prefIndependent+prefCollective+prefHomolog
 wI=prefIndependent/sumPref
 wC=prefCollective/sumPref
 wH=prefHomolog/sumPref
-RLIST=list() #Saves all matrices on a list to calculate average values at the end, like mean, sd, ...
-utilityMenMO=c()
-utilityMenFO=c()
-utilityWomenMO=c()
-utilityWomenFO=c()
+iterations=repetitions+1
 percentileWomenFO=c()
 percentileMenFO=c()
 percentileWomenMO=c()
 percentileMenMO=c()
-fo_avg_W=c()
-mo_avg_W=c()
-fo_avg_M=c()
-mo_avg_M=c()
 ```
 
 ### Defining Function to generate all preferences in one iteration
@@ -80,7 +72,9 @@ generatePreferences <- function(nmen, nwomen, mn, sd, wI, wC, wH) {
   
   #Calculate preferences stated by each agent
   uM <<- (wI*iUm + wC*Aw + wH*hUm) #weighted pref. by men for women
+  uMt <<- t(uM)
   uW <<- (wI*iUw + wC*Am + wH*hUw) #weighted pref. by women for men
+  uWt <<- t(uW)
   
   #sender
   senderMen = t(t(rep(1:nmen, each = nwomen)))
@@ -100,7 +94,7 @@ generatePreferences <- function(nmen, nwomen, mn, sd, wI, wC, wH) {
 }
 ```
 
-### Run Experiment for x iterations
+### Run Matching for i iterations
 - Each experiment creates a new dating network
 - Each network is two-sided and consists of n men and m women
 - Each agent has random preferences for each agent of the other gender
@@ -119,52 +113,26 @@ for (i in seedMin:seedMax){
   #female-optimal matching
   resultsW <- galeShapley.marriageMarket(uW, uM) 
   galeShapley.checkStability(uW, uM, resultsW$proposals, resultsW$engagements)
-  #calculate average utility of each matched agent
+  resultsMW <<- diag(uMt[resultsW$proposals,1:nwomen])
+  resultsMW[is.na(resultsMW)] <- 0
   resultsWW <<- diag(uW[resultsW$proposals,1:nwomen])
   resultsWW[is.na(resultsWW)] <- 0 #this sets utility = 0 in case of no match
-  uWWav <<- mean(resultsWW, na.rm=TRUE)
-  resultsMW <<- diag(uM[resultsW$engagements,1:nmen])
-  resultsMW[is.na(resultsMW)] <- 0
-  uMWav <<- mean(resultsMW, na.rm=TRUE)
   
   #male-optimal matching
   resultsM <- galeShapley.marriageMarket(uM, uW) 
   galeShapley.checkStability(uM, uW, resultsM$proposals, resultsM$engagements)
-  #calculate average utility of each matched agent
-  resultsWM <<- diag(uW[resultsM$engagements,1:nwomen])
-  resultsMW[is.na(resultsMW)] <- 0
-  uWMav <<- mean(resultsWM, na.rm=TRUE)
+  resultsWM <<- diag(uWt[resultsM$proposals,1:nmen])
+  resultsWM[is.na(resultsWM)] <- 0
   resultsMM <<- diag(uM[resultsM$proposals,1:nmen])
   resultsMM[is.na(resultsMM)] <- 0
-  uMMav <<- mean(resultsMM, na.rm=TRUE)
   
-  #Create results
-  #Gini Coefficient female-optimal
+  #Transform Utility to Percentiles
   percWW = round(pnorm(resultsWW,mean=mn,sd=sd), digits = 2)
   percMW = round(pnorm(resultsMW,mean=mn,sd=sd), digits = 2)
-  wealthW = c(percWW, percMW)
-  wealthW[is.na(wealthW)] <- 0
-  #Gini Coefficient male-optimal
   percMM = round(pnorm(resultsMM,mean=mn,sd=sd), digits = 2)
   percWM = round(pnorm(resultsWM,mean=mn,sd=sd), digits = 2)
-  wealthM = c(percMM, percWM)
-  wealthM[is.na(wealthM)] <- 0
   
-  #Define result matrix
-  #resultsUtility = matrix(c(min(resultsWW, na.rm = TRUE), uWWav, max(resultsWW, na.rm = TRUE), min(resultsWM, na.rm = TRUE), uWMav, max(resultsWM, na.rm = TRUE), min(resultsMW, na.rm = TRUE), uMWav, max(resultsMW, na.rm = TRUE), min(resultsMM, na.rm = TRUE), uMMav, max(resultsMM, na.rm = TRUE), rep(round(100*ineq(wealthW,type="Gini"),digits=0),3), rep(round(100*ineq(wealthM,type="Gini"), digits = 0),3)), nrow = 6, ncol = 3)
-  resultsPercentile = matrix(c(pnorm(min(resultsWW, na.rm = TRUE),mean=mn,sd=sd), pnorm(uWWav,mean=mn,sd=sd), pnorm(max(resultsWW, na.rm = TRUE),mean=mn,sd=sd), pnorm(min(resultsWM, na.rm = TRUE),mean=mn,sd=sd), pnorm(uWMav,mean=mn,sd=sd), pnorm(max(resultsWM, na.rm = TRUE),mean=mn,sd=sd), pnorm(min(resultsMW, na.rm = TRUE),mean=mn,sd=sd), pnorm(uMWav,mean=mn,sd=sd), pnorm(max(resultsMW, na.rm = TRUE),mean=mn,sd=sd), pnorm(min(resultsMM, na.rm = TRUE),mean=mn,sd=sd), pnorm(uMMav,mean=mn,sd=sd), pnorm(max(resultsMM, na.rm = TRUE),mean=mn,sd=sd), rep(ineq(wealthW,type="Gini"),3), rep(ineq(wealthM,type="Gini"),3)), nrow = 6, ncol = 3)
-  rownames(resultsPercentile) = c("fo min", "fo avg", "fo max", "mo min", "mo avg", "mo max")
-  colnames(resultsPercentile) = c("Match Percentile for Women", "Match Percentile for Men", "Gini Coeff.")
-  
-  fo_avg_W=round(c(fo_avg_W,resultsPercentile[2,1]), digits=3)
-  fo_avg_M=round(c(fo_avg_M,resultsPercentile[2,2]), digits=3)
-  mo_avg_W=round(c(mo_avg_W,resultsPercentile[5,1]), digits=3)
-  mo_avg_M=round(c(mo_avg_M,resultsPercentile[5,2]), digits=3)
-  RLIST[[i]]=resultsPercentile
-  utilityMenFO[[i]]=resultsMW
-  utilityMenMO[[i]]=resultsMM
-  utilityWomenFO[[i]]=resultsWW
-  utilityWomenMO[[i]]=resultsWM
+  #Record percentiles over i repetitions
   percentileWomenFO[[i]]=percWW
   percentileMenFO[[i]]=percMW
   percentileWomenMO[[i]]=percWM
@@ -172,107 +140,26 @@ for (i in seedMin:seedMax){
 }
 ```
 
-### Results
-Summarizes all x iterations and builds average of the aggregate utility over all experiment iterations. Aggregate Utility for each gender is displayed as percentile. The higher the percentile, the better. 
-Example: On average, women liked their allocated match better than 75% of the other men if their percentile = 0.75
+###Generate Output
 ```{r, message = FALSE, warning = FALSE}
-arr=array(unlist(RLIST),c(6,3,repetitions+1))
+#Create columns separately
+algorithm = matrix(c(rep("female-optimal", each=nwomen*iterations), rep("male-optimal", each=nmen*iterations)), nrow=(iterations*setSize), byrow=TRUE)
+genderSender = matrix(c(rep("female", each = nwomen*iterations), rep("male", each = nmen*(repetitions+1))), nrow=(iterations*setSize), byrow=TRUE)
+genderReceiver = matrix(c(rep("male", each = nwomen*iterations), rep("female", each = nmen*(repetitions+1))), nrow=(iterations*setSize), byrow=TRUE)
+networkSize = matrix(setSize, nrow=iterations*setSize, byrow=TRUE)
+weightMen = matrix(round(nmen/setSize, digits=2), nrow=iterations*setSize, byrow=TRUE)
+weightWomen = matrix(round(nwomen/setSize, digits=2), nrow=iterations*setSize, byrow=TRUE)
+weightIndependentPref = matrix(round(wI, digits=2), nrow=iterations*setSize, byrow=TRUE)
+weightCollectivePref = matrix(round(wC, digits=2), nrow=iterations*setSize, byrow=TRUE)
+weightHomologPref = matrix(round(wH, digits=2), nrow=iterations*setSize, byrow=TRUE)
+matchSatisfactionSender = matrix(c(unlist(percentileWomenFO),unlist(percentileMenMO)), nrow=iterations*setSize, byrow=TRUE)
+matchSatisfactionReceiver = matrix(c(unlist(percentileMenFO),unlist(percentileWomenMO)), nrow=iterations*setSize, byrow=TRUE)
 
-AVERAGE=apply(arr , 1:2 , mean )
-row.names(AVERAGE)=row.names(resultsPercentile)
-colnames(AVERAGE)=colnames(resultsPercentile)
-AVERAGE
+#Combine to one dataset
+tableau = cbind(algorithm, genderSender, genderReceiver, networkSize, weightMen, weightWomen, weightIndependentPref, weightCollectivePref, weightHomologPref, matchSatisfactionSender, matchSatisfactionReceiver)
+colnames(tableau) = c("algorithm", "genderSender", "genderReceiver", "setSize", "weightMen", "weightWomen", "weightIndependentPref", "weightCollectivePref", "weightHomologPref", "matchSatisfactionSender", "matchSatisfactionReceiver")
 
-SD=apply(arr , 1:2 , sd)
-row.names(SD)=row.names(resultsPercentile)
-colnames(SD)=colnames(resultsPercentile)
-SD
-```
-
-### Prepare for Graphs
-```{r, message = FALSE, warning = FALSE}
-#TOPLOT
-#dfWomenFO <- data.frame(matrix(unlist(utilityWomenFO), nrow=nwomen, byrow=T))
-#dfWomenMO  <- data.frame(matrix(unlist(utilityWomenMO), nrow=nwomen, byrow=T))
-#dfMenFO <- data.frame(matrix(unlist(utilityMenFO), nrow=nmen, byrow=T))
-#dfMenMO <- data.frame(matrix(unlist(utilityMenMO), nrow=nmen, byrow=T))
-
-dfWomenFO <- data.frame(matrix(unlist(percentileWomenFO), nrow=nwomen, byrow=T))
-#dfWomenMO  <- data.frame(matrix(unlist(percentileWomenMO), nrow=nwomen, byrow=T))
-dfMenFO <- data.frame(matrix(unlist(percentileMenFO), nrow=nmen, byrow=T))
-#dfMenMO <- data.frame(matrix(unlist(percentileMenMO), nrow=nmen, byrow=T))
-
-DF=data.frame(avg=c(fo_avg_W,fo_avg_M,mo_avg_W,mo_avg_M),
-              algorithm=c(rep("female-optimal",2*(repetitions+1)),rep("male-optimal",2*(repetitions+1))),
-              sex=c(rep("women",repetitions+1),
-                    rep("men",repetitions+1),rep("women",repetitions+1),rep("men",repetitions+1)))
-
-#Construct 2 violin graphs
-data_summary <- function(x) {
-  m <- mean(x)
-  ymin <- m-sd(x)
-  ymax <- m+sd(x)
-  return(c(y=m,ymin=ymin,ymax=ymax))
-}
-```
-
-### Aggregate Gender Satisfaction Chart
-Within each iteration, was utility distributed fairly across agents in both genders? Was this result stable across iterations?
-```{r, message = FALSE, warning = FALSE, dpi=300}
-ggplot(data = DF, aes(x = avg, fill=sex)) + 
-
-  geom_vline(data=DF, aes(xintercept=AVERAGE[2,2]), linetype="solid", size=1, colour = "#2595FF") +
-  geom_vline(data=DF, aes(xintercept=AVERAGE[2,1]), linetype="solid", size=1, colour = "#FE18AC") +
-  geom_bar(data = filter(DF, algorithm == "female-optimal"),show.legend=FALSE, color = NA, alpha = 0.3, position="identity") +
-  scale_fill_manual(values=c("#2595FF", "#FE18AC")) +
-  xlab("Aggregate Gender Satisfaction in each Matching") + ylab("Frequency") + #Add axis
-  theme(plot.title = element_text(face="bold", size=16, hjust=0)) + #format title
-  scale_y_continuous(breaks=seq(0,12,1)) +
-  labs(title = paste("Aggregate Gender Matching Satisfaction"), caption = paste((repetitions+1), " iterations"), subtitle = (paste("Set size = ", setSize," || men/women (in %) = ", nmen/setSize*100, ":", nwomen/setSize*100, "\nPreference structure individual/collective/homolog (in %) = ", round(wI*100), "/", round(wC * 100), "/", round(wH * 100), sep = ""))) + #add title
-  #xlim(low=0.8, high=1) + #change this to modify x-axis limits
-  theme_economist_white() #applies Economist-like theme
-```
-
-### Individual Matching Satisfaction across all iterations
-
-```{r, message = FALSE, warning = FALSE, dpi=300}
-dfMenFO$id=1:nrow(dfMenFO)
-dfPlot=melt(dfMenFO, id.vars="id")
-plotMen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) + 
-  geom_vline(data=dfPlot, aes(xintercept=AVERAGE[2,2]), linetype="solid", size=1, colour = "#2595FF") +
-  geom_density(alpha=1/(repetitions+1),show.legend=FALSE, colour=NA) +
-  scale_fill_manual(values = rep("#2595FF", each=repetitions+1)) +
-  theme_economist_white() +
-
-  theme(axis.title.y=element_text(hjust=1), axis.title.x=element_blank(), axis.text.y=element_blank()) +
-
-  scale_y_reverse() +
-  xlim(low=0, high=1) +
-  #scale_x_continuous(breaks=seq(0,1,0.1)) +
-  ylab("Share of Matching") +
-  xlab("Match Percentile per Agent") +
-  coord_flip() +
-  theme(plot.margin = unit(c(0.3, 0.2, 0.3, 0.5), "cm")) #adds space
-  #xlim(low=0, high=1)
-
-dfWomenFO$id=1:nrow(dfWomenFO)
-dfPlot=melt(dfWomenFO, id.vars="id")
-plotWomen <- ggplot(data = dfPlot, aes(x=value, fill=variable)) + 
-  geom_vline(data=dfPlot, aes(xintercept=AVERAGE[2,1]), linetype="solid", size=1, colour = "#FE18AC") +
-  geom_density(alpha=1/(repetitions+1),show.legend=FALSE, colour=NA) +
-  scale_fill_manual(values = rep("#FE18AC", each=repetitions+1)) + #add title
-  theme_economist_white() +
-  labs(caption = paste((repetitions+1), " iterations")) + #add title
-  coord_flip() +
-  theme(axis.title.y=element_blank(), axis.title.x=element_blank(), axis.text.y=element_text(hjust=1)) + 
-  xlim(low=0, high=1) +
-  theme(plot.margin = unit(c(0, 0.3, 0, 0), "cm"))
-
-p=plot_grid(plotMen,plotWomen, align="h")
-title <- ggdraw() + 
-  draw_label("Individual Matching Satisfaction", fontface='bold', size = 16, x=0.05, y=0.5, hjust = 0, vjust=0) +
-  draw_label(paste("Set size = ", setSize," || men/women (in %) = ", nmen/setSize*100, ":", nwomen/setSize*100),size=10, x = 0.05, y=0.24, hjust=0, vjust=0) + 
-  draw_label(paste("Preference structure individual/collective/homolog (in %) = ", round(wI*100), "/", round(wC * 100), "/", round(wH * 100), sep = ""),size=10, x = 0.05, y=0.05, hjust=0, vjust=0)
-plot_grid(title, p, ncol=1, rel_heights=c(0.2, 1)) +
-  theme(panel.background=element_rect(fill="#EBEBEB",color="#EBEBEB"))
+#Export to Excel
+filename=paste("sS_", nmen+nwomen, "_gD_", round(nmen/setSize*100), "_", round(wI, digits=2), "_", round(wC, digits=2), "_", round(wH, digits=2), ".csv", sep="")
+write.csv(x=tableau, file=filename)
 ```
