@@ -26,12 +26,12 @@ Sets network size, gender distribution, preference structure, experiment iterati
 
 - *intercorrelated/homolog/vertical*: Certain characteristics attract agents to each other, for example a low distance, a preferable age/height/height constellation, or common interests
 ```{r, message = FALSE, warning = FALSE}
-nmen <- 3 #number of men
+nmen <- 5 #number of men
 nwomen <- 3 #number of women
 prefIndependent <- 1 #weight of subjective/independent preferences
 prefCollective <- 0 #weight of collective/correlated preferences
 prefHomolog <- 0 #weight of homolog/intercorrelated preferences
-repetitions <- 1 #how many times the experiment is repeated with new set of random preferences
+repetitions <- 0 #how many times the experiment is repeated with new set of random preferences
 mn <- 6.3 #average preference
 sd <- 1.9 #standard deviation
 ```
@@ -110,33 +110,23 @@ for (i in seedMin:seedMax){
   #Generate Profiles
   preferences=generatePreferences(nmen, nwomen, mn, sd, wI, wC, wH)
   
-  #female-optimal matching
+  #generate Matchings
   resultsW <- galeShapley.marriageMarket(uW, uM) 
-  galeShapley.checkStability(uW, uM, resultsW$proposals, resultsW$engagements)
-  resultsMW <<- diag(uMt[resultsW$proposals,1:nwomen])
-  resultsMW[is.na(resultsMW)] <- 0
-  resultsWW <<- diag(uW[resultsW$proposals,1:nwomen])
-  resultsWW[is.na(resultsWW)] <- 0 #this sets utility = 0 in case of no match
-  
-  #male-optimal matching
   resultsM <- galeShapley.marriageMarket(uM, uW) 
-  galeShapley.checkStability(uM, uW, resultsM$proposals, resultsM$engagements)
-  resultsWM <<- diag(uWt[resultsM$proposals,1:nmen])
-  resultsWM[is.na(resultsWM)] <- 0
-  resultsMM <<- diag(uM[resultsM$proposals,1:nmen])
+
+  #Record results for each agent in each iteration
+  resultsWW <<- pnorm(diag(uW[resultsW$proposals,1:nwomen]),mean=mn,sd=sd)
+  resultsWW[is.na(resultsWW)] <- 0 #this sets utility = 0 in case of no match
+  resultsMM <<- pnorm(diag(uM[resultsM$proposals,1:nmen]),mean=mn,sd=sd)
   resultsMM[is.na(resultsMM)] <- 0
-  
-  #Transform Utility to Percentiles
-  percWW = round(pnorm(resultsWW,mean=mn,sd=sd), digits = 2)
-  percMW = round(pnorm(resultsMW,mean=mn,sd=sd), digits = 2)
-  percMM = round(pnorm(resultsMM,mean=mn,sd=sd), digits = 2)
-  percWM = round(pnorm(resultsWM,mean=mn,sd=sd), digits = 2)
-  
-  #Record percentiles over i repetitions
-  percentileWomenFO[[i]]=percWW
-  percentileMenFO[[i]]=percMW
-  percentileWomenMO[[i]]=percWM
-  percentileMenMO[[i]]=percMM
+  resultsWM <<- pnorm(diag(uWt[resultsM$proposals,1:nmen]),mean=mn,sd=sd)
+  resultsMW <<- pnorm(diag(uMt[resultsW$proposals,1:nwomen]),mean=mn,sd=sd)
+
+  #Record Matching Satisfaction for all i iterations
+  percentileWomenFO[[i]] = resultsWW
+  percentileMenMO[[i]] = resultsMM
+  percentileMenFO[[i]] = resultsMW
+  percentileWomenMO[[i]] = resultsWM
 }
 ```
 
