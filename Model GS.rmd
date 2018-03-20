@@ -26,12 +26,11 @@ Sets network size, gender distribution, preference structure, experiment iterati
 
 - *intercorrelated/homolog/vertical*: Certain characteristics attract agents to each other, for example a low distance, a preferable age/height/height constellation, or common interests
 ```{r, message = FALSE, warning = FALSE}
-nmen <- 5 #number of men
-nwomen <- 3 #number of women
+setSize <- 1000 #50% men, 50% women
 prefIndependent <- 1 #weight of subjective/independent preferences
-prefCollective <- 0 #weight of collective/correlated preferences
-prefHomolog <- 0 #weight of homolog/intercorrelated preferences
-repetitions <- 0 #how many times the experiment is repeated with new set of random preferences
+prefCollective <- 1 #weight of collective/correlated preferences
+prefHomolog <- 1 #weight of homolog/intercorrelated preferences
+repetitions <- 99 #how many times the experiment is repeated with new set of random preferences
 mn <- 6.3 #average preference
 sd <- 1.9 #standard deviation
 ```
@@ -42,7 +41,9 @@ Only change if you know what you are doing
 seed = 1 #sets seed for reproducability
 seedMin=seed
 seedMax=seed+repetitions
-setSize=nmen+nwomen
+nmen=setSize/2
+nwomen=setSize/2
+nMatchings=setSize/2
 sumPref=prefIndependent+prefCollective+prefHomolog
 wI=prefIndependent/sumPref
 wC=prefCollective/sumPref
@@ -76,14 +77,14 @@ generatePreferences <- function(nmen, nwomen, mn, sd, wI, wC, wH) {
   uW <<- (wI*iUw + wC*Am + wH*hUw) #weighted pref. by women for men
   uWt <<- t(uW)
   
-  #sender
-  senderMen = t(t(rep(1:nmen, each = nwomen)))
-  senderWomen = t(t(rep(1:nwomen, each = nmen)))
+  #Create Sender&Receiver List
+  arrayMen = cbind(1:nmen)
+  arrayWomen = cbind(1:nwomen) + nmen
+  senderMen = rep(arrayMen, each = nwomen)
+  senderWomen = rep(arrayWomen, each = nmen)
   senderList = c(senderMen, senderWomen)
-  
-  #receiver
-  receiverWomen = rep(1:nmen, times = nwomen)
-  receiverMen = rep((nmen+1):(nmen+nwomen), times = nmen)
+  receiverMen = rep(arrayMen, times = nwomen)
+  receiverWomen = rep(arrayWomen, times = nmen)
   receiverList = c(receiverWomen, receiverMen)
   
   #preferences
@@ -112,44 +113,44 @@ for (i in seedMin:seedMax){
   
   #generate Matchings
   resultsW <- galeShapley.marriageMarket(uW, uM) 
-  resultsM <- galeShapley.marriageMarket(uM, uW) 
+  resultsM <- galeShapley.marriageMarket(uM, uW)
+  resultsW$proposals <- append(resultsW$proposals, rep(NA, each = length(resultsW$single.reviewers)))
+  resultsW$engagements <- append(resultsW$engagements, rep(NA, each = length(resultsW$single.proposers)))
+  resultsM$proposals <- append(resultsM$proposals, rep(NA, each = length(resultsM$single.reviewers)))
+  resultsM$engagements <- append(resultsM$engagements, rep(NA, each = length(resultsM$single.proposers)))
 
   #Record results for each agent in each iteration
-  resultsWW <<- pnorm(diag(uW[resultsW$proposals,1:nwomen]),mean=mn,sd=sd)
+  resultsWW <<- diag(uW[resultsW$proposals,1:nwomen])
   resultsWW[is.na(resultsWW)] <- 0 #this sets utility = 0 in case of no match
-  resultsMM <<- pnorm(diag(uM[resultsM$proposals,1:nmen]),mean=mn,sd=sd)
+  resultsMM <<- diag(uM[resultsM$proposals,1:nmen])
   resultsMM[is.na(resultsMM)] <- 0
-  resultsWM <<- pnorm(diag(uWt[resultsM$proposals,1:nmen]),mean=mn,sd=sd)
-  resultsMW <<- pnorm(diag(uMt[resultsW$proposals,1:nwomen]),mean=mn,sd=sd)
+  resultsWM <<- diag(uWt[resultsM$proposals,1:nmen])
+  resultsMW <<- diag(uMt[resultsW$proposals,1:nwomen])
 
   #Record Matching Satisfaction for all i iterations
-  percentileWomenFO[[i]] = resultsWW
-  percentileMenMO[[i]] = resultsMM
-  percentileMenFO[[i]] = resultsMW
-  percentileWomenMO[[i]] = resultsWM
+  percentileWomenFO[[i]] = pnorm(resultsWW,mean=mn,sd=sd)
+  percentileMenMO[[i]] = pnorm(resultsMM,mean=mn,sd=sd)
+  percentileMenFO[[i]] = pnorm(resultsMW,mean=mn,sd=sd)
+  percentileWomenMO[[i]] = pnorm(resultsWM,mean=mn,sd=sd)
 }
 ```
 
 ###Generate Output
 ```{r, message = FALSE, warning = FALSE}
 #Create columns separately
-algorithm = matrix(c(rep("female-optimal", each=nwomen*iterations), rep("male-optimal", each=nmen*iterations)), nrow=(iterations*setSize), byrow=TRUE)
-genderSender = matrix(c(rep("female", each = nwomen*iterations), rep("male", each = nmen*(repetitions+1))), nrow=(iterations*setSize), byrow=TRUE)
-genderReceiver = matrix(c(rep("male", each = nwomen*iterations), rep("female", each = nmen*(repetitions+1))), nrow=(iterations*setSize), byrow=TRUE)
-networkSize = matrix(setSize, nrow=iterations*setSize, byrow=TRUE)
-weightMen = matrix(round(nmen/setSize, digits=2), nrow=iterations*setSize, byrow=TRUE)
-weightWomen = matrix(round(nwomen/setSize, digits=2), nrow=iterations*setSize, byrow=TRUE)
-weightIndependentPref = matrix(round(wI, digits=2), nrow=iterations*setSize, byrow=TRUE)
-weightCollectivePref = matrix(round(wC, digits=2), nrow=iterations*setSize, byrow=TRUE)
-weightHomologPref = matrix(round(wH, digits=2), nrow=iterations*setSize, byrow=TRUE)
-matchSatisfactionSender = matrix(c(unlist(percentileWomenFO),unlist(percentileMenMO)), nrow=iterations*setSize, byrow=TRUE)
-matchSatisfactionReceiver = matrix(c(unlist(percentileMenFO),unlist(percentileWomenMO)), nrow=iterations*setSize, byrow=TRUE)
+algorithm = matrix(c(rep("female-optimal", each=nMatchings*iterations), rep("male-optimal", each=nMatchings*iterations)), byrow=TRUE)
+networkSize = matrix(setSize, nrow=iterations*nMatchings*2, byrow=TRUE)
+weightIndependentPref = matrix(round(wI, digits=2), nrow=iterations*nMatchings*2, byrow=TRUE)
+weightCollectivePref = matrix(round(wC, digits=2), nrow=iterations*nMatchings*2, byrow=TRUE)
+weightHomologPref = matrix(round(wH, digits=2), nrow=iterations*nMatchings*2, byrow=TRUE)
+satisfactionMale = matrix(c(unlist(percentileMenFO),unlist(percentileMenMO)), nrow=iterations*nMatchings*2, byrow=TRUE)
+satisfactionFemale = matrix(c(unlist(percentileWomenFO),unlist(percentileWomenMO)), nrow=iterations*nMatchings*2, byrow=TRUE)
 
 #Combine to one dataset
-tableau = cbind(algorithm, genderSender, genderReceiver, networkSize, weightMen, weightWomen, weightIndependentPref, weightCollectivePref, weightHomologPref, matchSatisfactionSender, matchSatisfactionReceiver)
-colnames(tableau) = c("algorithm", "genderSender", "genderReceiver", "setSize", "weightMen", "weightWomen", "weightIndependentPref", "weightCollectivePref", "weightHomologPref", "matchSatisfactionSender", "matchSatisfactionReceiver")
+tableau = cbind(algorithm, networkSize, weightIndependentPref, weightCollectivePref, weightHomologPref, satisfactionMale, satisfactionFemale)
+colnames(tableau) = c("algorithm", "networkSize", "weightIndependentPref", "weightCollectivePref", "weightHomologPref", "maleSatisfaction", "femaleSatisfaction")
 
 #Export to Excel
-filename=paste("sS_", nmen+nwomen, "_gD_", round(nmen/setSize*100), "_", round(wI, digits=2), "_", round(wC, digits=2), "_", round(wH, digits=2), ".csv", sep="")
+filename=paste("n-", setSize, "_preferences_", round(wI, digits=2), "-", round(wC, digits=2), "-", round(wH, digits=2), "_iterations-", iterations, ".csv", sep="")
 write.csv(x=tableau, file=filename)
 ```
