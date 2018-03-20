@@ -135,7 +135,7 @@ for (i in seedMin:seedMax){
 }
 ```
 
-###Generate Output
+### Generate Output
 ```{r, message = FALSE, warning = FALSE}
 #Create columns separately
 algorithm = matrix(c(rep("female-optimal", each=nMatchings*iterations), rep("male-optimal", each=nMatchings*iterations)), byrow=TRUE)
