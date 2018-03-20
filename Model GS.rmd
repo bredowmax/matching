@@ -6,11 +6,9 @@ Github repository: <https://github.com/bredowmax/matching>
 ### Load & optionally install required packages
 - matchingR: Runs DAA and solves the Stable Marriage Problem by matching up agents in stable pairs
 - dplyr:  Allows quick filtering in large datasets
-- ggplot2: Renders graphs with a professional look
 - rmarkdown: Export R code to Word
-- ineq: Package that allows to display inequality
 ```{r, message = FALSE, warning = FALSE}
-requiredPackages = c("matchingR", "dplyr", "ggplot2", "rmarkdown", "ineq", "reshape2", "ggthemes", "cowplot", "grid", "scales", "Rserve")
+requiredPackages = c("matchingR", "dplyr", "rmarkdown")
 for(p in requiredPackages){
   if(!require(p,character.only = TRUE)) install.packages(p)
   library(p,character.only = TRUE)
